@@ -1,0 +1,458 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Cashier Register (Laptop)</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            background: #f0f2f5;
+            margin: 0;
+            padding: 20px;
+        }
+        .container {
+            max-width: 900px;
+            margin: 0 auto;
+            background: white;
+            padding: 20px;
+            border-radius: 10px;
+            box-shadow: 0 4px 10px rgba(0,0,0,0.1);
+        }
+        h1 { color: #333; margin-top: 0; }
+        .controls {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 20px;
+            flex-wrap: wrap;
+        }
+        button {
+            padding: 10px 15px;
+            font-size: 16px;
+            cursor: pointer;
+            border: none;
+            border-radius: 5px;
+            background: #007bff;
+            color: white;
+        }
+        button:hover { background: #0056b3; }
+        button.success { background: #28a745; }
+        button.success:hover { background: #218838; }
+        button.danger { background: #dc3545; }
+        button.danger:hover { background: #c82333; }
+        button.warning { background: #ffc107; color: #333; }
+        button.warning:hover { background: #e0a800; }
+
+        .cart-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-bottom: 20px;
+        }
+        .cart-table th, .cart-table td {
+            border: 1px solid #ddd;
+            padding: 10px;
+            text-align: left;
+        }
+        .cart-table th { background: #f8f9fa; }
+        .total-section {
+            font-size: 22px;
+            font-weight: bold;
+            text-align: right;
+            margin-bottom: 20px;
+        }
+
+        /* Wizard Box Styling */
+        .wizard-box {
+            background: #e9ecef;
+            padding: 20px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+            display: none;
+        }
+        .wizard-step {
+            margin-bottom: 15px;
+        }
+        .wizard-step label {
+            font-weight: bold;
+            display: block;
+            margin-bottom: 5px;
+        }
+        .wizard-step input {
+            padding: 8px;
+            width: 100%;
+            max-width: 400px;
+            box-sizing: border-box;
+        }
+
+        /* Modal styling */
+        .modal {
+            display: none;
+            position: fixed;
+            z-index: 10;
+            left: 0;
+            top: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0,0,0,0.5);
+        }
+        .modal-content {
+            background: white;
+            margin: 5% auto;
+            padding: 20px;
+            width: 80%;
+            max-width: 600px;
+            border-radius: 8px;
+            max-height: 85vh;
+            overflow-y: auto;
+            text-align: center;
+        }
+        .memory-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
+            gap: 15px;
+            margin-top: 15px;
+            text-align: left;
+        }
+        .memory-card {
+            border: 1px solid #ddd;
+            padding: 10px;
+            border-radius: 6px;
+            background: #fafafa;
+            text-align: center;
+        }
+        .memory-card img {
+            width: 80px;
+            height: 80px;
+            object-fit: cover;
+            border-radius: 4px;
+        }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <h1>🛒 Cashier Register (Laptop)</h1>
+
+    <!-- Action Buttons (Add Item is back right here!) -->
+    <div class="controls">
+        <button class="warning" onclick="openWizard()">➕ Add Item</button>
+        <button class="warning" onclick="openMemoryModal()">📂 Memory (Items)</button>
+        <button class="warning" onclick="openCardNumbersModal()">💳 Card Numbers</button>
+        <button class="success" onclick="nextScreen()">Move to Payment Screen</button>
+        <button class="danger" onclick="resetRegister()">Reset Register</button>
+    </div>
+
+    <!-- Step-by-Step Add Item Wizard -->
+    <div class="wizard-box" id="wizardBox">
+        <h3 id="wizardTitleText">Step-by-Step Item Creator</h3>
+        <div class="wizard-step">
+            <label>Step 1: Title of Product</label>
+            <input type="text" id="wizName" placeholder="e.g., Toy Car">
+        </div>
+        <div class="wizard-step">
+            <label>Step 2: Product Picture</label>
+            <input type="file" id="wizImgFile" accept="image/*">
+        </div>
+        <div class="wizard-step">
+            <label>Step 3: Price ($)</label>
+            <input type="number" id="wizPrice" placeholder="4.99" step="0.01">
+        </div>
+        <button class="success" onclick="saveWizardItem()">Save Item Forever</button>
+        <button onclick="closeWizard()">Cancel</button>
+    </div>
+
+    <!-- Cart Items Table -->
+    <h3>Current Cart (Synced Live)</h3>
+    <table class="cart-table">
+        <thead>
+            <tr>
+                <th>Image</th>
+                <th>Item Name</th>
+                <th>Price</th>
+                <th>Action</th>
+            </tr>
+        </thead>
+        <tbody id="cartItemsList">
+            <!-- Scanned items appear here -->
+        </tbody>
+    </table>
+
+    <!-- Total Display at the Bottom -->
+    <div class="total-section">
+        Total: $<span id="cartTotal">0.00</span>
+    </div>
+</div>
+
+<!-- Permanent Item Memory Modal with Select & Delete -->
+<div class="modal" id="memoryModal">
+    <div class="modal-content">
+        <h2>Permanent Item Memory</h2>
+        <p>Select items you want to delete from memory:</p>
+        <div class="memory-grid" id="memoryGrid"></div>
+        <br>
+        <button class="danger" onclick="deleteSelectedMemory()">Delete Selected Items</button>
+        <button onclick="closeMemoryModal()">Close</button>
+    </div>
+</div>
+
+<!-- Card Numbers Modal with Select & Delete -->
+<div class="modal" id="cardNumbersModal">
+    <div class="modal-content" style="width: 50%; max-width: 400px;">
+        <h2>Registered Cards</h2>
+        <p>Select card numbers you want to delete:</p>
+        <ul id="cardListContainer" style="list-style: none; padding: 0; text-align: left; max-height: 150px; overflow-y: auto;"></ul>
+        <br>
+        <button class="danger" onclick="deleteSelectedCards()">Delete Selected Cards</button>
+        <button onclick="closeCardNumbersModal()">Close</button>
+    </div>
+</div>
+
+<!-- Card Approval Popup Modal -->
+<div class="modal" id="approvalModal">
+    <div class="modal-content" style="width: 50%; max-width: 400px;">
+        <h2>Card Registration Request</h2>
+        <p>Customer wants to register card number: <strong id="pendingCardNum"></strong></p>
+        <button class="success" onclick="approveCard()">Approve</button>
+        <button class="danger" onclick="disapproveCard()">Disapprove</button>
+    </div>
+</div>
+
+<script>
+    if (!localStorage.getItem('shopInventory')) {
+        localStorage.setItem('shopInventory', JSON.stringify([
+            { id: 1, name: "Apple", price: 0.99, img: "https://via.placeholder.com/80" },
+            { id: 2, name: "Milk", price: 3.49, img: "https://via.placeholder.com/80" }
+        ]));
+    }
+
+    let registeredCards = JSON.parse(localStorage.getItem('registeredCards')) || ["12345"];
+    let lastProcessedScanId = localStorage.getItem('lastScanId') || 0;
+
+    function updateDisplay() {
+        let currentCart = JSON.parse(localStorage.getItem('shopCart')) || [];
+        const cartList = document.getElementById('cartItemsList');
+        cartList.innerHTML = '';
+        let total = 0;
+
+        currentCart.forEach((item, index) => {
+            total += item.price;
+            cartList.innerHTML += `
+                <tr>
+                    <td><img src="${item.img}" width="40" height="40" style="object-fit:cover; border-radius:4px;"></td>
+                    <td>${item.name}</td>
+                    <td>$${item.price.toFixed(2)}</td>
+                    <td><button class="danger" onclick="removeItem(${index})">Remove</button></td>
+                </tr>
+            `;
+        });
+
+        document.getElementById('cartTotal').innerText = total.toFixed(2);
+    }
+
+    // Check incoming scans from the phone scanner
+    function checkForIncomingScans() {
+        let incomingScans = JSON.parse(localStorage.getItem('incomingScans')) || [];
+        if (incomingScans.length === 0) return;
+
+        let latestScan = incomingScans[incomingScans.length - 1];
+
+        if (latestScan.id > lastProcessedScanId) {
+            lastProcessedScanId = latestScan.id;
+            localStorage.setItem('lastScanId', lastProcessedScanId);
+
+            let inventory = JSON.parse(localStorage.getItem('shopInventory')) || [];
+            let foundItem = inventory.find(i => i.name.toLowerCase() === latestScan.name.toLowerCase());
+            let currentCart = JSON.parse(localStorage.getItem('shopCart')) || [];
+
+            if (foundItem) {
+                currentCart.push(foundItem);
+                localStorage.setItem('shopCart', JSON.stringify(currentCart));
+                updateDisplay();
+            } else {
+                alert("Product not found!");
+                document.getElementById('wizName').value = latestScan.name;
+                document.getElementById('wizPrice').value = latestScan.price || '';
+                window.pendingScannedImg = latestScan.img;
+                openWizard();
+            }
+        }
+    }
+
+    function removeItem(index) {
+        let currentCart = JSON.parse(localStorage.getItem('shopCart')) || [];
+        currentCart.splice(index, 1);
+        localStorage.setItem('shopCart', JSON.stringify(currentCart));
+        updateDisplay();
+    }
+
+    function nextScreen() {
+        localStorage.setItem('checkoutStep', 'payment');
+        alert("Moved customer tablet screen to payment!");
+    }
+
+    function resetRegister() {
+        localStorage.setItem('shopCart', JSON.stringify([]));
+        localStorage.setItem('checkoutStep', 'shopping');
+        localStorage.removeItem('cardStatus');
+        localStorage.removeItem('cardApprovalRequest');
+        updateDisplay();
+        alert("Register reset for next customer!");
+    }
+
+    // Wizard Controls
+    function openWizard() {
+        document.getElementById('wizardBox').style.display = 'block';
+    }
+    function closeWizard() {
+        document.getElementById('wizardBox').style.display = 'none';
+        document.getElementById('wizName').value = '';
+        document.getElementById('wizPrice').value = '';
+        document.getElementById('wizImgFile').value = '';
+        window.pendingScannedImg = null;
+    }
+
+    function saveWizardItem() {
+        const name = document.getElementById('wizName').value.trim();
+        const price = parseFloat(document.getElementById('wizPrice').value);
+        const fileInput = document.getElementById('wizImgFile');
+
+        if (!name || isNaN(price)) {
+            alert("Please enter a valid product title and price!");
+            return;
+        }
+
+        if (fileInput.files && fileInput.files[0]) {
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                finishSavingItem(name, price, e.target.result);
+            };
+            reader.readAsDataURL(fileInput.files[0]);
+        } else {
+            const imgToUse = window.pendingScannedImg || "https://via.placeholder.com/80";
+            finishSavingItem(name, price, imgToUse);
+        }
+    }
+
+    function finishSavingItem(name, price, img) {
+        const newItem = { id: Date.now(), name, price, img };
+        
+        let inventory = JSON.parse(localStorage.getItem('shopInventory')) || [];
+        inventory.push(newItem);
+        localStorage.setItem('shopInventory', JSON.stringify(inventory));
+        
+        let currentCart = JSON.parse(localStorage.getItem('shopCart')) || [];
+        currentCart.push(newItem);
+        localStorage.setItem('shopCart', JSON.stringify(currentCart));
+        
+        updateDisplay();
+        alert(`Saved "${name}" to permanent memory & added to cart!`);
+        closeWizard();
+    }
+
+    // Memory Modal
+    function openMemoryModal() {
+        let inventory = JSON.parse(localStorage.getItem('shopInventory')) || [];
+        const grid = document.getElementById('memoryGrid');
+        grid.innerHTML = '';
+
+        inventory.forEach((item, index) => {
+            grid.innerHTML += `
+                <div class="memory-card">
+                    <input type="checkbox" class="memory-checkbox" value="${index}" id="mem_${index}">
+                    <label for="mem_${index}">
+                        <img src="${item.img}" alt="${item.name}"><br>
+                        <strong>${item.name}</strong><br>
+                        <span>$${item.price.toFixed(2)}</span>
+                    </label>
+                </div>
+            `;
+        });
+
+        document.getElementById('memoryModal').style.display = 'block';
+    }
+    function closeMemoryModal() {
+        document.getElementById('memoryModal').style.display = 'none';
+    }
+    function deleteSelectedMemory() {
+        const checkboxes = document.querySelectorAll('.memory-checkbox:checked');
+        if (checkboxes.length === 0) {
+            alert("Please select at least one item to delete.");
+            return;
+        }
+
+        if (confirm("Delete selected items from memory?")) {
+            let inventory = JSON.parse(localStorage.getItem('shopInventory')) || [];
+            const indicesToDelete = Array.from(checkboxes).map(cb => parseInt(cb.value));
+            inventory = inventory.filter((_, idx) => !indicesToDelete.includes(idx));
+            localStorage.setItem('shopInventory', JSON.stringify(inventory));
+            openMemoryModal();
+        }
+    }
+
+    // Card Numbers Modal
+    function openCardNumbersModal() {
+        const listContainer = document.getElementById('cardListContainer');
+        listContainer.innerHTML = '';
+        registeredCards.forEach((card, idx) => {
+            listContainer.innerHTML += `
+                <li style="padding: 8px; border-bottom: 1px solid #ddd;">
+                    <input type="checkbox" class="card-checkbox" value="${idx}" id="card_${idx}">
+                    <label for="card_${idx}"> Card #${idx + 1}: <strong>${card}</strong></label>
+                </li>
+            `;
+        });
+        document.getElementById('cardNumbersModal').style.display = 'block';
+    }
+    function closeCardNumbersModal() {
+        document.getElementById('cardNumbersModal').style.display = 'none';
+    }
+    function deleteSelectedCards() {
+        const checkboxes = document.querySelectorAll('.card-checkbox:checked');
+        if (checkboxes.length === 0) {
+            alert("Please select at least one card to delete.");
+            return;
+        }
+
+        if (confirm("Delete selected card numbers?")) {
+            const indicesToDelete = Array.from(checkboxes).map(cb => parseInt(cb.value));
+            registeredCards = registeredCards.filter((_, idx) => !indicesToDelete.includes(idx));
+            localStorage.setItem('registeredCards', JSON.stringify(registeredCards));
+            openCardNumbersModal();
+        }
+    }
+
+    setInterval(() => {
+        updateDisplay();
+        checkForIncomingScans();
+
+        const req = localStorage.getItem('cardApprovalRequest');
+        const pendingCard = localStorage.getItem('pendingCard');
+        if (req === 'pending' && pendingCard) {
+            document.getElementById('pendingCardNum').innerText = pendingCard;
+            document.getElementById('approvalModal').style.display = 'block';
+            localStorage.setItem('cardApprovalRequest', 'prompted');
+        }
+    }, 500);
+
+    function approveCard() {
+        const pendingCard = localStorage.getItem('pendingCard');
+        if (pendingCard && !registeredCards.includes(pendingCard)) {
+            registeredCards.push(pendingCard);
+            localStorage.setItem('registeredCards', JSON.stringify(registeredCards));
+        }
+        localStorage.setItem('cardStatus', 'approved');
+        document.getElementById('approvalModal').style.display = 'none';
+        localStorage.removeItem('cardApprovalRequest');
+    }
+
+    function disapproveCard() {
+        localStorage.setItem('cardStatus', 'disapproved');
+        document.getElementById('approvalModal').style.display = 'none';
+        localStorage.removeItem('cardApprovalRequest');
+    }
+
+    updateDisplay();
+</script>
+
+</body>
+</html>
