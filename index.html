@@ -98,9 +98,9 @@
 
 <script>
     const BIN_ID = "6af0c856ffd5d16053b19aac";
-    $2a$10$kxSBPv9NfutdB.zoBny1g.5BjiDXXe6P3mSm/3yebuzo8RXmdYlR6"; // <-- REPLACE WITH YOUR JSONBIN MASTER KEY
+    const API_KEY = "$2a$10$kxSBPv9NfutB.zoBny1g.5BjiDXXe6P3mSm/3yebuzo8RXmdYlR6";
 
-    let cloudData = {};
+    let cloudData = { shopCart: [], shopInventory: [], registeredCards: ["12345"] };
     let pendingPhotoData = "";
     let lastProcessedScanId = 0;
 
@@ -147,6 +147,7 @@
     }
 
     async function triggerPhoneAdd() {
+        if (!cloudData.phoneAction) cloudData.phoneAction = {};
         cloudData.phoneAction = { action: 'add_request', timestamp: Date.now() };
         await saveCloud();
         alert("Signal sent to phone scanner!");
@@ -159,6 +160,7 @@
             lastProcessedScanId = latest.id;
             let found = (cloudData.shopInventory || []).find(i => i.name.toLowerCase() === latest.name.toLowerCase());
             if (found) {
+                if (!cloudData.shopCart) cloudData.shopCart = [];
                 cloudData.shopCart.push(found);
                 saveCloud();
             } else {
@@ -271,7 +273,7 @@
         await saveCloud();
     }
 
-    setInterval(fetchCloud, 1000);
+    setInterval(fetchCloud, 1500);
     fetchCloud();
 </script>
 </body>
