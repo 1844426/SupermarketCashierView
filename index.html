@@ -83,6 +83,15 @@
             max-width: 400px;
             box-sizing: border-box;
         }
+        #wizImgPreview {
+            width: 80px;
+            height: 80px;
+            object-fit: cover;
+            border-radius: 4px;
+            border: 1px solid #ccc;
+            display: block;
+            margin-top: 5px;
+        }
 
         /* Modal styling */
         .modal {
@@ -133,25 +142,25 @@
 <div class="container">
     <h1>🛒 Cashier Register (Laptop)</h1>
 
-    <!-- Action Buttons (Add Item is back right here!) -->
+    <!-- Action Buttons -->
     <div class="controls">
-        <button class="warning" onclick="openWizard()">➕ Add Item</button>
+        <button class="warning" onclick="triggerPhoneAdd()">➕ Add Item</button>
         <button class="warning" onclick="openMemoryModal()">📂 Memory (Items)</button>
         <button class="warning" onclick="openCardNumbersModal()">💳 Card Numbers</button>
         <button class="success" onclick="nextScreen()">Move to Payment Screen</button>
         <button class="danger" onclick="resetRegister()">Reset Register</button>
     </div>
 
-    <!-- Step-by-Step Add Item Wizard -->
+    <!-- Step-by-Step Add Item Wizard (Populates photo from phone, you fill title & price) -->
     <div class="wizard-box" id="wizardBox">
-        <h3 id="wizardTitleText">Step-by-Step Item Creator</h3>
+        <h3>Step-by-Step Item Creator</h3>
         <div class="wizard-step">
-            <label>Step 1: Title of Product</label>
-            <input type="text" id="wizName" placeholder="e.g., Toy Car">
+            <label>Step 1: Scanned Product Photo (from Phone)</label>
+            <img id="wizImgPreview" src="" alt="Pending photo">
         </div>
         <div class="wizard-step">
-            <label>Step 2: Product Picture</label>
-            <input type="file" id="wizImgFile" accept="image/*">
+            <label>Step 2: Title of Product</label>
+            <input type="text" id="wizName" placeholder="e.g., Toy Car">
         </div>
         <div class="wizard-step">
             <label>Step 3: Price ($)</label>
@@ -183,7 +192,7 @@
     </div>
 </div>
 
-<!-- Permanent Item Memory Modal with Select & Delete -->
+<!-- Permanent Item Memory Modal -->
 <div class="modal" id="memoryModal">
     <div class="modal-content">
         <h2>Permanent Item Memory</h2>
@@ -195,7 +204,7 @@
     </div>
 </div>
 
-<!-- Card Numbers Modal with Select & Delete -->
+<!-- Card Numbers Modal -->
 <div class="modal" id="cardNumbersModal">
     <div class="modal-content" style="width: 50%; max-width: 400px;">
         <h2>Registered Cards</h2>
@@ -227,6 +236,7 @@
 
     let registeredCards = JSON.parse(localStorage.getItem('registeredCards')) || ["12345"];
     let lastProcessedScanId = localStorage.getItem('lastScanId') || 0;
+    let pendingPhotoData = "";
 
     function updateDisplay() {
         let currentCart = JSON.parse(localStorage.getItem('shopCart')) || [];
@@ -249,7 +259,16 @@
         document.getElementById('cartTotal').innerText = total.toFixed(2);
     }
 
-    // Check incoming scans from the phone scanner
+    // Step 1: Click "Add Item" on laptop sends a signal to the phone scanner
+    function triggerPhoneAdd() {
+        localStorage.setItem('phoneAction', JSON.stringify({
+            action: 'add_request',
+            timestamp: Date.now()
+        }));
+        alert("Signal sent to phone scanner! Please check your phone.");
+    }
+
+    // Check for incoming scans or photos sent back from the phone scanner
     function checkForIncomingScans() {
         let incomingScans = JSON.parse(localStorage.getItem('incomingScans')) || [];
         if (incomingScans.length === 0) return;
@@ -269,10 +288,11 @@
                 localStorage.setItem('shopCart', JSON.stringify(currentCart));
                 updateDisplay();
             } else {
-                alert("Product not found!");
-                document.getElementById('wizName').value = latestScan.name;
-                document.getElementById('wizPrice').value = latestScan.price || '';
-                window.pendingScannedImg = latestScan.img;
+                alert("Product not found! Opening wizard to fill in title and price.");
+                pendingPhotoData = latestScan.img;
+                document.getElementById('wizImgPreview').src = pendingPhotoData;
+                document.getElementById('wizName').value = '';
+                document.getElementById('wizPrice').value = '';
                 openWizard();
             }
         }
@@ -299,42 +319,25 @@
         alert("Register reset for next customer!");
     }
 
-    // Wizard Controls
     function openWizard() {
         document.getElementById('wizardBox').style.display = 'block';
     }
     function closeWizard() {
         document.getElementById('wizardBox').style.display = 'none';
-        document.getElementById('wizName').value = '';
-        document.getElementById('wizPrice').value = '';
-        document.getElementById('wizImgFile').value = '';
-        window.pendingScannedImg = null;
+        pendingPhotoData = "";
     }
 
     function saveWizardItem() {
         const name = document.getElementById('wizName').value.trim();
         const price = parseFloat(document.getElementById('wizPrice').value);
-        const fileInput = document.getElementById('wizImgFile');
 
         if (!name || isNaN(price)) {
             alert("Please enter a valid product title and price!");
             return;
         }
 
-        if (fileInput.files && fileInput.files[0]) {
-            const reader = new FileReader();
-            reader.onload = function(e) {
-                finishSavingItem(name, price, e.target.result);
-            };
-            reader.readAsDataURL(fileInput.files[0]);
-        } else {
-            const imgToUse = window.pendingScannedImg || "https://via.placeholder.com/80";
-            finishSavingItem(name, price, imgToUse);
-        }
-    }
-
-    function finishSavingItem(name, price, img) {
-        const newItem = { id: Date.now(), name, price, img };
+        const imgToUse = pendingPhotoData || "https://via.placeholder.com/80";
+        const newItem = { id: Date.now(), name, price, img: imgToUse };
         
         let inventory = JSON.parse(localStorage.getItem('shopInventory')) || [];
         inventory.push(newItem);
